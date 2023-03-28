@@ -17,4 +17,3 @@ struct index_scan art_init_scan(void *item, size_t scan_size);
 void art_index_add(struct slab_callback *cb, void *item);
 
 #endif
-

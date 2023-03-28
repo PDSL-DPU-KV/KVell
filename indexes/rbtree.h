@@ -27,39 +27,41 @@ Retrieved from: http://en.literateprograms.org/Red-black_tree_(C)?oldid=16016
 
 #ifndef _RBTREE_H_
 #define _RBTREE_H_ 1
-#include <unistd.h>
 #include <stdint.h>
+#include <unistd.h>
 enum rbtree_node_color { RED, BLACK };
 
 #include "memory-item.h"
 
 typedef struct rbtree_node_t {
-    void* key;
-    index_entry_t value;
-    struct rbtree_node_t* left;
-    struct rbtree_node_t* right;
-    struct rbtree_node_t* parent;
-    enum rbtree_node_color color;
-} *rbtree_node;
+  void *key;
+  index_entry_t value;
+  struct rbtree_node_t *left;
+  struct rbtree_node_t *right;
+  struct rbtree_node_t *parent;
+  enum rbtree_node_color color;
+} * rbtree_node;
 
 typedef struct rbtree_t {
-    rbtree_node root;
-    rbtree_node last_visited_node;
-    int nb_elements;
-} *rbtree;
+  rbtree_node root;
+  rbtree_node last_visited_node;
+  int nb_elements;
+} * rbtree;
 
-typedef int (*compare_func)(void* left, void* right);
+typedef int (*compare_func)(void *left, void *right);
 int pointer_cmp(void *left, void *right);
 
 rbtree rbtree_create();
-index_entry_t* rbtree_lookup(rbtree t, void* key, compare_func compare);
-void rbtree_insert(rbtree t, void* key, index_entry_t* value, compare_func compare);
-void rbtree_delete(rbtree t, void* key, compare_func compare);
+index_entry_t *rbtree_lookup(rbtree t, void *key, compare_func compare);
+void rbtree_insert(rbtree t, void *key, index_entry_t *value,
+                   compare_func compare);
+void rbtree_delete(rbtree t, void *key, compare_func compare);
 
 struct rbtree_scan_tmp {
-   struct rbtree_node_t *entries;
-   size_t nb_entries;
+  struct rbtree_node_t *entries;
+  size_t nb_entries;
 };
-struct rbtree_scan_tmp rbtree_lookup_n(rbtree t, void *key, size_t n, compare_func compare);
+struct rbtree_scan_tmp rbtree_lookup_n(rbtree t, void *key, size_t n,
+                                       compare_func compare);
 
 #endif

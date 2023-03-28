@@ -14,10 +14,10 @@ void kv_remove_async(struct slab_callback *callback);
 
 typedef struct index_scan tree_scan_res_t;
 tree_scan_res_t kv_init_scan(void *item, size_t scan_size);
-void kv_read_async_no_lookup(struct slab_callback *callback, struct slab *s, size_t slab_idx);
+void kv_read_async_no_lookup(struct slab_callback *callback, struct slab *s,
+                             size_t slab_idx);
 
 size_t get_database_size(void);
-
 
 void slab_workers_init(int nb_disks, int nb_workers_per_disk);
 int get_nb_workers(void);

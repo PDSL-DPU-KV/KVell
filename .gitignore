@@ -5,3 +5,6 @@ microbench
 benchcomponents
 scripts/parse_log
 makefile.dep
+.cache
+compile_commands.json
+test
