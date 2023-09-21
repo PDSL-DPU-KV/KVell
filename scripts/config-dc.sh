@@ -9,25 +9,25 @@ fi
 echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
 echo 0 > /proc/sys/kernel/numa_balancing
 systemctl disable ondemand
-for i in $(seq 0 35); do
+for i in $(seq 0 39); do
    echo "performance" > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor
 done
 
 #Disable hyperthreading
-for i in $(seq 36 71); do
+for i in $(seq 40 79); do
    echo 0 > /sys/devices/system/cpu/cpu$i/online
 done
 
 #Create mounts
 used=`df -h | grep nvme | perl -pe 's/.*?([0-9]).*/\1/'` # For some reason / is sometimes mounted on an NVMe, so discard it
 j=0
-for i in 0 1 2 3 4 5 6 7 8; do
+for i in 0 1 4; do
    [ "$i" = "$used" ] && continue
    mkfs -t ext4 /dev/nvme${i}n1
-   mkdir /scratch${j}
-   mount -o rw,noatime,nodiratime,block_validity,delalloc,nojournal_checksum,barrier,user_xattr,acl /dev/nvme${i}n1 /scratch${j}/
-   mkdir /scratch${j}/kvell
-   sudo chown ubuntu:ubuntu /scratch${j}/kvell
+   mkdir /mnt/ssd${j}
+   mount -o rw,noatime,nodiratime,block_validity,delalloc,nojournal_checksum,barrier,user_xattr,acl /dev/nvme${i}n1 /mnt/ssd${j}/
+   mkdir /mnt/ssd${j}/kvell
+   sudo chown dc:dc /mnt/ssd${j}/kvell
    j=$((j+1))
 done
 

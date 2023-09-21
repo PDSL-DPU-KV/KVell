@@ -1,5 +1,11 @@
+#define _GNU_SOURCE
+
 #ifndef IOENGINE_H
 #define IOENGINE_H 1
+
+#include <stddef.h>
+#include <stdint.h>
+#include <fcntl.h>
 
 struct io_context *worker_ioengine_init(size_t nb_callbacks);
 

@@ -3,8 +3,8 @@
 fileName=""                # filename of the log
 memoryLimit=-1             # cgroup limits
 commandPrefix=""           # prefix to write before the command
-deviceName="nvme1n1"           # device name
-devicePart="/dev/nvme1n1p1"    # where is the database?
+deviceName="nvme2n1"           # device name
+devicePart="/dev/nvme2n1"    # where is the database?
 
 function usage() {
    echo "Usage ./profile -f logName -m memoryLimit -- <command>"

@@ -1,7 +1,10 @@
+#define _GNU_SOURCE
+
 #ifndef SLAB_H
 #define SLAB_H 1
 
 #include "ioengine.h"
+#include "indexes/btree.h"
 
 struct slab;
 struct slab_callback;
