@@ -3,7 +3,7 @@
 
 #define DEBUG 0
 #define PINNING 1
-#define PATH "/mnt/ssd%lu/kvell/slab-%d-%lu-%lu"
+#define PATH "/home/lpk/mnt/ssd%lu/kvell/slab-%d-%lu-%lu"
 
 /* In memory structures */
 #define RBTREE 0
