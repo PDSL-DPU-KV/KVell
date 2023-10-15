@@ -15,7 +15,7 @@
 #define PAGECACHE_INDEX BTREE
 
 /* Queue depth management */
-#define QUEUE_DEPTH 64
+#define QUEUE_DEPTH 4 
 #define MAX_NB_PENDING_CALLBACKS_PER_WORKER (4 * QUEUE_DEPTH)
 #define NEVER_EXCEED_QUEUE_DEPTH                                               \
   1 // Never submit more than QUEUE_DEPTH IO requests simultaneously, otherwise
