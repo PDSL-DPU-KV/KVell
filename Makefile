@@ -1,8 +1,8 @@
-CC=clang  #If you use GCC, add -fno-strict-aliasing to the CFLAGS because the Google BTree does weird stuff
+CC=gcc  #If you use GCC, add -fno-strict-aliasing to the CFLAGS because the Google BTree does weird stuff
 #CFLAGS=-Wall -O0 -ggdb3
-CFLAGS=-O2 -ggdb3 -Wall
+CFLAGS=-O2 -ggdb3 -Wall -fno-strict-aliasing
 
-CXX=clang++
+CXX=g++
 CXXFLAGS= ${CFLAGS} -std=c++11
 
 LDLIBS=-lm -lpthread -lstdc++
