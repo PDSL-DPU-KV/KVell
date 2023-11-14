@@ -24,7 +24,34 @@
  *   The page cache is big enough to hold as many pages as concurrent buffered
  * IOs.
  */
+#define MONITOR_IO 0
+#if MONITOR_IO
+static inline void print_data(char * data, size_t num){
+  if(num > PAGE_SIZE){
+    printf("data out of range(%p) %lu\n", data, num);
+    num = PAGE_SIZE;
+  }
+  size_t line_width = 16, i = 0;
+  for(i = 0; i < num; ++i){
+    if(i == line_width){
+      num -= i;
+      i = 0;
+      putchar('\n');
+    }
+    printf("%X ", *(data++));
+  }
+  if(i)
+    putchar('\n');
+}
 
+static void display_data(char * page){
+  struct item_metadata * meta = (struct item_metadata *)page;
+  printf("data(%p): rdt(%lu) key(%lu) value(%lu)\n", page, meta->rdt, meta->key_size, meta->value_size);
+  print_data(page+sizeof(struct item_metadata), meta->key_size);
+  print_data(page+sizeof(struct item_metadata)+meta->key_size, meta->value_size);
+  printf("\n");
+}
+#endif
 /*
  * Non asynchronous calls to ease some things
  */
@@ -211,6 +238,11 @@ char *write_page_async(struct slab_callback *callback) {
     die("WTF?\n");
   }
 
+#if MONITOR_IO
+  printf("write page async(%p)\n", callback);
+  display_data(lru_entry->page);
+#endif
+
   if (lru_entry->dirty) { // this is the second time we write the page, which
                           // means it already has been queued for writting
     struct linked_callbacks *linked_cb;
@@ -295,6 +327,10 @@ void worker_ioengine_process_completed_ios(struct io_context *ctx) {
       struct slab_callback *callback = (void *)cb->aio_data;
       assert(ctx->events[i].res == 4096); // otherwise page hasn't been read
       callback->lru_entry->contains_data = 1;
+#if MONITOR_IO
+      printf("read data async(%p)\n", callback);
+      display_data(callback->lru_entry->page);
+#endif
       // callback->lru_entry->dirty = 0; // done before
       callback->io_cb(callback);
     }
