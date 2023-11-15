@@ -86,11 +86,22 @@ typedef btree_t *hash_t;
 
 #endif
 
+enum LRU_BUF_ACTION {WRITE, READ, NONE};
+
+struct lru_buf{
+  char *page;
+  struct lru_buf * next;
+  size_t used_size;
+  size_t cap;
+  enum LRU_BUF_ACTION action;
+};
+
 struct lru {
   struct lru *prev;
   struct lru *next;
   uint64_t hash;
   void *page;
+  struct lru_buf * buf;
   int contains_data;
   int dirty;
 };

@@ -48,10 +48,102 @@ static void display_data(char * page){
   struct item_metadata * meta = (struct item_metadata *)page;
   printf("data(%p): rdt(%lu) key(%lu) value(%lu)\n", page, meta->rdt, meta->key_size, meta->value_size);
   print_data(page+sizeof(struct item_metadata), meta->key_size);
-  print_data(page+sizeof(struct item_metadata)+meta->key_size, meta->value_size);
+  // print_data(page+sizeof(struct item_metadata)+meta->key_size, meta->value_size);
   printf("\n");
 }
 #endif
+
+#define HAVE_COMPRESS 0
+#if HAVE_COMPRESS
+#endif
+static __thread struct lru_buf * lru_buf_stack = NULL;
+static __thread size_t lru_buf_stack_size = 0;
+
+static struct lru_buf * alloc_lru_buf(size_t num, size_t cap){
+  if(num == 0 || cap == 0)
+    return NULL;
+  struct lru_buf * cur = NULL, * start, * next;
+  cur = start = (struct lru_buf *)malloc(sizeof(*start));
+  while(--num){
+    next = (struct lru_buf *)malloc(sizeof(*cur));
+    cur->next = next;
+    cur = next;
+  }
+  cur->next = NULL;
+  for(cur = start; cur; cur = cur->next){
+    cur->cap = PAGE_SIZE;
+    cur->page = (char *)aligned_alloc(cur->cap, cur->cap);
+  }
+  return start;
+}
+
+static struct lru_buf * get_lru_buf(struct lru * lru_entry){
+  if(lru_entry->buf)
+    return lru_entry->buf;
+  if(!lru_buf_stack)
+    lru_buf_stack = alloc_lru_buf(MAX_NB_PENDING_CALLBACKS_PER_WORKER, PAGE_SIZE);
+  lru_entry->buf = lru_buf_stack;
+  lru_buf_stack = lru_entry->buf->next;
+  lru_entry->buf->next = NULL;
+  lru_entry->buf->action = NONE;
+  lru_entry->buf->used_size = 0;
+  return lru_entry->buf;
+}
+
+static void bump_lru_buf(struct lru * lru_entry){
+  if(!lru_entry->buf){
+    fprintf(stderr, "bumping an empty lru_entry!\n");
+    return;
+  }
+  lru_entry->buf->next = lru_buf_stack;
+  lru_buf_stack = lru_entry->buf;
+  lru_entry->buf = NULL;
+}
+
+static size_t get_write_nbytes(struct lru * lru_entry){
+  struct lru_buf * buf = lru_entry->buf;
+  if(!buf || buf->action != WRITE || !buf->used_size)
+    return 0;
+  size_t alignment = 1024;
+  size_t nbytes = buf->used_size;
+  while(alignment < nbytes)
+    alignment <<= 1;
+  return alignment;
+}
+
+static char * get_buf_page(struct lru * lru_entry){
+  if(!lru_entry->buf)
+    get_lru_buf(lru_entry);
+  return lru_entry->buf->page;
+}
+
+static inline void save_buf_data(struct lru * lru_entry){
+  assert(lru_entry->contains_data);
+  struct lru_buf * buf = get_lru_buf(lru_entry);
+  buf->action = WRITE;
+#if HAVE_COMPRESS
+  buf->used_size = LZ4_compress_default(lru_entry->page, ((char*)buf->page)+sizeof(size_t), PAGE_SIZE, PAGE_SIZE-sizeof(size_t));
+  *((size_t*)buf->page) = buf->used_size;
+#else
+  memcpy(buf->page, lru_entry->page, PAGE_SIZE);
+  buf->used_size = PAGE_SIZE;
+#endif
+}
+
+static inline void load_buf_data(struct lru * lru_entry){
+  struct lru_buf * buf = get_lru_buf(lru_entry);
+  buf->action = READ;
+#if HAVE_COMPRESS
+  char * page = (char *)buf->page;
+  buf->used_size = *(size_t*)page;
+  page += sizeof(size_t);
+  LZ4_decompress_safe(page, lru_entry->page, buf->used_size, PAGE_SIZE);
+#else
+  memcpy(lru_entry->page, buf->page, PAGE_SIZE);
+#endif
+  lru_entry->contains_data = 1;
+}
+
 /*
  * Non asynchronous calls to ease some things
  */
@@ -209,12 +301,14 @@ char *read_page_async(struct slab_callback *callback) {
     return NULL;
   }
 
+  assert(!lru_entry->buf);
+
   int buffer_idx = ctx->sent_io % ctx->max_pending_io;
   struct iocb *_iocb = &ctx->iocb[buffer_idx];
   memset(_iocb, 0, sizeof(*_iocb));
   _iocb->aio_fildes = callback->slab->fd;
   _iocb->aio_lio_opcode = IOCB_CMD_PREAD;
-  _iocb->aio_buf = (uint64_t)disk_page;
+  _iocb->aio_buf = (uint64_t)get_buf_page(lru_entry);// disk_page;
   _iocb->aio_data = (uint64_t)callback;
   _iocb->aio_offset = page_num * PAGE_SIZE;
   _iocb->aio_nbytes = PAGE_SIZE;
@@ -243,6 +337,9 @@ char *write_page_async(struct slab_callback *callback) {
   display_data(lru_entry->page);
 #endif
 
+  if(lru_entry->dirty) // then this lru must have got a buf and not bumpped it yet
+    save_buf_data(lru_entry);
+
   if (lru_entry->dirty) { // this is the second time we write the page, which
                           // means it already has been queued for writting
     struct linked_callbacks *linked_cb;
@@ -254,16 +351,18 @@ char *write_page_async(struct slab_callback *callback) {
   }
 
   lru_entry->dirty = 1;
+  assert(!lru_entry->buf);
+  save_buf_data(lru_entry);
 
   int buffer_idx = ctx->sent_io % ctx->max_pending_io;
   struct iocb *_iocb = &ctx->iocb[buffer_idx];
   memset(_iocb, 0, sizeof(*_iocb));
   _iocb->aio_fildes = callback->slab->fd;
   _iocb->aio_lio_opcode = IOCB_CMD_PWRITE;
-  _iocb->aio_buf = (uint64_t)disk_page;
+  _iocb->aio_buf = (uint64_t)get_buf_page(lru_entry); // disk_page;
   _iocb->aio_data = (uint64_t)callback;
   _iocb->aio_offset = page_num * PAGE_SIZE;
-  _iocb->aio_nbytes = PAGE_SIZE;
+  _iocb->aio_nbytes = (uint64_t)get_write_nbytes(lru_entry); // PAGE_SIZE;
   if (ctx->sent_io - ctx->processed_io >= ctx->max_pending_io)
     die("Sent %lu ios, processed %lu (> %lu waiting), IO buffer is too full!\n",
         ctx->sent_io, ctx->processed_io, ctx->max_pending_io);
@@ -325,8 +424,11 @@ void worker_ioengine_process_completed_ios(struct io_context *ctx) {
     for (size_t i = 0; i < ret; i++) {
       struct iocb *cb = (void *)ctx->events[i].obj;
       struct slab_callback *callback = (void *)cb->aio_data;
-      assert(ctx->events[i].res == 4096); // otherwise page hasn't been read
-      callback->lru_entry->contains_data = 1;
+      if(cb->aio_lio_opcode == IOCB_CMD_PREAD){
+        assert(ctx->events[i].res == 4096); // otherwise page hasn't been read
+        load_buf_data(callback->lru_entry); // set lru_entry->contains_data
+      }
+      bump_lru_buf(callback->lru_entry);
 #if MONITOR_IO
       printf("read data async(%p)\n", callback);
       display_data(callback->lru_entry->page);
