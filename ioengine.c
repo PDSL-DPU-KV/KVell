@@ -85,7 +85,7 @@ static struct lru_buf * get_lru_buf(struct lru * lru_entry){
   lru_entry->buf = lru_buf_stack;
   lru_buf_stack = lru_entry->buf->next;
   lru_entry->buf->next = NULL;
-  lru_entry->buf->action = NONE;
+  lru_entry->buf->action = BUF_NONE;
   lru_entry->buf->used_size = 0;
   return lru_entry->buf;
 }
@@ -102,7 +102,7 @@ static void bump_lru_buf(struct lru * lru_entry){
 
 static size_t get_write_nbytes(struct lru * lru_entry){
   struct lru_buf * buf = lru_entry->buf;
-  if(!buf || buf->action != WRITE || !buf->used_size)
+  if(!buf || buf->action != BUF_WRITE || !buf->used_size)
     return 0;
   size_t alignment = 1024;
   size_t nbytes = buf->used_size;
@@ -120,7 +120,7 @@ static char * get_buf_page(struct lru * lru_entry){
 static inline void save_buf_data(struct lru * lru_entry){
   assert(lru_entry->contains_data);
   struct lru_buf * buf = get_lru_buf(lru_entry);
-  buf->action = WRITE;
+  buf->action = BUF_WRITE;
 #if HAVE_COMPRESS
   buf->used_size = LZ4_compress_default(lru_entry->page, ((char*)buf->page)+sizeof(size_t), PAGE_SIZE, PAGE_SIZE-sizeof(size_t));
   *((size_t*)buf->page) = buf->used_size;
@@ -132,7 +132,7 @@ static inline void save_buf_data(struct lru * lru_entry){
 
 static inline void load_buf_data(struct lru * lru_entry){
   struct lru_buf * buf = get_lru_buf(lru_entry);
-  buf->action = READ;
+  buf->action = BUF_READ;
 #if HAVE_COMPRESS
   char * page = (char *)buf->page;
   buf->used_size = *(size_t*)page;

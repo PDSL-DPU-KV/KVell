@@ -86,7 +86,7 @@ typedef btree_t *hash_t;
 
 #endif
 
-enum LRU_BUF_ACTION {WRITE, READ, NONE};
+enum LRU_BUF_ACTION {BUF_WRITE, BUF_READ, BUF_NONE};
 
 struct lru_buf{
   char *page;
