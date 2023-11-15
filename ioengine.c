@@ -53,8 +53,9 @@ static void display_data(char * page){
 }
 #endif
 
-#define HAVE_COMPRESS 0
+#define HAVE_COMPRESS 1
 #if HAVE_COMPRESS
+#include <lz4.h>
 #endif
 static __thread struct lru_buf * lru_buf_stack = NULL;
 static __thread size_t lru_buf_stack_size = 0;

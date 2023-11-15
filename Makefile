@@ -5,7 +5,7 @@ CFLAGS=-O2 -ggdb3 -Wall -fno-strict-aliasing
 CXX=g++
 CXXFLAGS= ${CFLAGS} -std=c++11
 
-LDLIBS=-lm -lpthread -lstdc++
+LDLIBS=-lm -lpthread -lstdc++ -llz4
 
 INDEXES_OBJ=indexes/rbtree.o indexes/rax.o indexes/art.o indexes/btree.o
 MAIN_OBJ=main.o slab.o freelist.o ioengine.o pagecache.o stats.o random.o slabworker.o workload-common.o workload-ycsb.o workload-production.o utils.o in-memory-index-rbtree.o in-memory-index-rax.o in-memory-index-art.o in-memory-index-btree.o ${INDEXES_OBJ}
